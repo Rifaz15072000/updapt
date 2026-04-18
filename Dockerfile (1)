@@ -1,0 +1,11 @@
+# ---- Frontend Dockerfile ----
+# Serves a static HTML page using nginx:alpine (lightweight image)
+FROM nginx:alpine
+
+# Copy static HTML into nginx's default serve directory
+COPY index.html /usr/share/nginx/html/index.html
+
+# Expose port 80 inside the container
+EXPOSE 80
+
+# Default nginx CMD is inherited — no need to override

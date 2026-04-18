@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CI/CD Demo App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .container {
+      text-align: center;
+      padding: 40px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      max-width: 600px;
+      width: 90%;
+    }
+    h1 { font-size: 2.5rem; margin-bottom: 10px; color: #e94560; }
+    p { font-size: 1.1rem; color: #a8b2c1; margin-bottom: 30px; }
+    .badge {
+      display: inline-block;
+      background: #e94560;
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      margin: 5px;
+    }
+    .health-btn {
+      margin-top: 30px;
+      padding: 12px 30px;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .health-btn:hover { background: #c73652; }
+    #health-status {
+      margin-top: 15px;
+      font-size: 0.95rem;
+      color: #4ecca3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 CI/CD Demo App</h1>
+    <p>Frontend container running via Nginx reverse proxy</p>
+    <span class="badge">Docker</span>
+    <span class="badge">GitHub Actions</span>
+    <span class="badge">AWS EC2</span>
+    <span class="badge">Windows Server 2022</span>
+    <br/><br/>
+    <button class="health-btn" onclick="checkHealth()">Check Backend Health</button>
+    <div id="health-status"></div>
+  </div>
+  <script>
+    async function checkHealth() {
+      const el = document.getElementById('health-status');
+      el.textContent = 'Checking...';
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        el.textContent = `✅ Backend OK — status: ${data.status}, service: ${data.service}`;
+      } catch (e) {
+        el.textContent = '❌ Backend unreachable: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
