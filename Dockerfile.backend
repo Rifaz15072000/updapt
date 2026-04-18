@@ -1,0 +1,22 @@
+# ---- Dockerfile.backend ----
+# Node.js Express API with /health endpoint
+# Build context is the repo ROOT (not a subfolder)
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package.json from repo root
+COPY package.json ./
+
+RUN npm install --omit=dev
+
+# Copy server.js from repo root
+COPY server.js .
+
+EXPOSE 5000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:5000/health || exit 1
+
+CMD ["node", "server.js"]

@@ -1,0 +1,10 @@
+# ---- Dockerfile.frontend ----
+# Serves the static index.html using nginx:alpine
+# Build context is the repo ROOT (not a subfolder)
+
+FROM nginx:alpine
+
+# Copy index.html from repo root into nginx's serve directory
+COPY index.html /usr/share/nginx/html/index.html
+
+EXPOSE 80
