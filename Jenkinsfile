@@ -82,7 +82,7 @@ stage('Deploy') {
             steps {
                 script {
                     timeout(time: 2, unit: 'MINUTES') {
-                        bat "curl -f http://localhost/health"
+                        bat "curl -f http://localhost/api/health"
                     }
                 }
             }
