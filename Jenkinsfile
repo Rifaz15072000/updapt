@@ -221,13 +221,12 @@
 //     }
 // }
 
-
 pipeline {
 
     agent any
 
     environment {
-        // ✅ Docker Hub credentials (Username + Access Token)
+        // Docker Hub credentials (Username + Access Token)
         DOCKER_CREDS = credentials('dockerhub-creds')
 
         FRONTEND_IMAGE = 'rifaz15072000/cicd-frontend'
@@ -245,7 +244,7 @@ pipeline {
     stages {
 
         // ─────────────────────────────
-        // STAGE 1: SOURCE
+        // SOURCE
         // ─────────────────────────────
         stage('Source') {
             steps {
@@ -260,57 +259,56 @@ pipeline {
         }
 
         // ─────────────────────────────
-        // STAGE 2: BUILD
+        // BUILD
         // ─────────────────────────────
         stage('Build') {
             steps {
-                echo "Building Docker images — tag: ${IMAGE_TAG}"
+                echo "Building Docker images..."
 
                 bat """
-                    docker build ^
-                        -f Dockerfile.frontend ^
-                        -t %FRONTEND_IMAGE%:%IMAGE_TAG% ^
-                        -t %FRONTEND_IMAGE%:latest ^
-                        .
+                docker build ^
+                  -f Dockerfile.frontend ^
+                  -t %FRONTEND_IMAGE%:%IMAGE_TAG% ^
+                  -t %FRONTEND_IMAGE%:latest ^
+                  .
                 """
 
                 bat """
-                    docker build ^
-                        -f Dockerfile.backend ^
-                        -t %BACKEND_IMAGE%:%IMAGE_TAG% ^
-                        -t %BACKEND_IMAGE%:latest ^
-                        .
+                docker build ^
+                  -f Dockerfile.backend ^
+                  -t %BACKEND_IMAGE%:%IMAGE_TAG% ^
+                  -t %BACKEND_IMAGE%:latest ^
+                  .
                 """
 
-                echo "Images built successfully"
-                bat 'docker images | findstr rifaz15072000'
+                echo "Build completed"
             }
         }
 
         // ─────────────────────────────
-        // STAGE 3: PUSH
+        // PUSH
         // ─────────────────────────────
         stage('Push') {
             steps {
-                echo "Logging in to Docker Hub..."
+                echo "Logging into Docker Hub..."
 
-                bat """
-                    echo %DOCKER_CREDS_PSW% | docker login -u %DOCKER_CREDS_USR% --password-stdin
-                """
+                bat '''
+                echo %DOCKER_CREDS_PSW% > token.txt
+                type token.txt | docker login -u %DOCKER_CREDS_USR% --password-stdin
+                del token.txt
+                '''
 
                 echo "Pushing frontend image..."
-                bat """
-                    docker push %FRONTEND_IMAGE%:%IMAGE_TAG%
-                    docker push %FRONTEND_IMAGE%:latest
-                """
+                bat '''
+                docker push %FRONTEND_IMAGE%:%IMAGE_TAG%
+                docker push %FRONTEND_IMAGE%:latest
+                '''
 
                 echo "Pushing backend image..."
-                bat """
-                    docker push %BACKEND_IMAGE%:%IMAGE_TAG%
-                    docker push %BACKEND_IMAGE%:latest
-                """
-
-                echo "Images pushed successfully"
+                bat '''
+                docker push %BACKEND_IMAGE%:%IMAGE_TAG%
+                docker push %BACKEND_IMAGE%:latest
+                '''
             }
             post {
                 always {
@@ -320,52 +318,49 @@ pipeline {
         }
 
         // ─────────────────────────────
-        // STAGE 4: DEPLOY
+        // DEPLOY
         // ─────────────────────────────
         stage('Deploy') {
             steps {
-                echo "Deploying containers..."
+                echo "Deploying using docker-compose..."
 
                 bat """
-                    cd /d %PROJECT_DIR%
-                    set DOCKER_HUB_USERNAME=%DOCKER_CREDS_USR%
-                    set IMAGE_TAG=%IMAGE_TAG%
-                    docker compose pull
+                cd /d %PROJECT_DIR%
+                set DOCKER_HUB_USERNAME=%DOCKER_CREDS_USR%
+                set IMAGE_TAG=%IMAGE_TAG%
+                docker compose pull
                 """
 
                 bat """
-                    cd /d %PROJECT_DIR%
-                    set DOCKER_HUB_USERNAME=%DOCKER_CREDS_USR%
-                    set IMAGE_TAG=%IMAGE_TAG%
-                    docker compose up -d --force-recreate
+                cd /d %PROJECT_DIR%
+                set DOCKER_HUB_USERNAME=%DOCKER_CREDS_USR%
+                set IMAGE_TAG=%IMAGE_TAG%
+                docker compose up -d --force-recreate
                 """
 
                 bat "docker compose -f %PROJECT_DIR%\\docker-compose.yml ps"
-
-                bat 'docker image prune -f'
+                bat "docker image prune -f"
 
                 echo "Deployment completed"
             }
         }
 
         // ─────────────────────────────
-        // STAGE 5: VERIFY
+        // VERIFY
         // ─────────────────────────────
         stage('Verify') {
             steps {
                 echo "Running health check..."
 
                 bat 'if not exist C:\\Temp mkdir C:\\Temp'
-
-                sleep(time: 20, unit: 'SECONDS')
+                sleep 20
 
                 script {
-                    def url = 'http://localhost/api/health'
-                    def retries = 5
+                    def url = "http://localhost/api/health"
                     def success = false
 
-                    for (int i = 1; i <= retries; i++) {
-                        echo "Attempt ${i}/${retries}"
+                    for (int i = 1; i <= 5; i++) {
+                        echo "Attempt ${i}..."
 
                         def status = bat(
                             script: "curl.exe -s -o C:\\Temp\\health.json -w \"%%{http_code}\" ${url}",
@@ -374,14 +369,14 @@ pipeline {
 
                         echo "HTTP Status: ${status}"
 
-                        if (status == '200') {
+                        if (status == "200") {
                             echo "Health check PASSED"
                             bat 'type C:\\Temp\\health.json'
                             success = true
                             break
                         }
 
-                        sleep(time: 10, unit: 'SECONDS')
+                        sleep 10
                     }
 
                     if (!success) {
@@ -392,6 +387,9 @@ pipeline {
         }
     }
 
+    // ─────────────────────────────
+    // POST
+    // ─────────────────────────────
     post {
         success {
             echo "============================================"
@@ -400,14 +398,17 @@ pipeline {
             echo " Health : http://localhost/api/health"
             echo "============================================"
         }
+
         failure {
             echo "============================================"
             echo " PIPELINE FAILED — Build #${env.BUILD_NUMBER}"
             echo " Run: docker compose -f C:\\cicd-project\\docker-compose.yml logs"
             echo "============================================"
         }
+
         always {
             cleanWs()
         }
     }
 }
+
