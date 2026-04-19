@@ -3,125 +3,86 @@ pipeline {
     agent any
 
     environment {
+        DOCKER_HUB = "rifaz15072000"
         FRONTEND_IMAGE = 'rifaz15072000/cicd-frontend'
         BACKEND_IMAGE  = 'rifaz15072000/cicd-backend'
-
-        IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT?.take(7) ?: 'latest'}"
-
-        PROJECT_DIR = 'C:\\cicd-project'
+        TAG = "${BUILD_NUMBER}"
     }
 
-    triggers {
-        pollSCM('H/2 * * * *')
-    }
+    // stages {
 
-    stages {
-
-        // ───────── SOURCE ─────────
-        stage('Source') {
-            steps {
-                echo "============================================"
-                echo " CI/CD Pipeline Starting"
-                echo " Build     : #${env.BUILD_NUMBER}"
-                echo " Commit    : ${env.GIT_COMMIT?.take(7) ?: 'N/A'}"
-                echo " Image Tag : ${IMAGE_TAG}"
-                echo "============================================"
-                bat 'dir'
-            }
-        }
+    //     // ───────── SOURCE ─────────
+    //     stage('Source') {
+    //         steps {
+    //             echo "============================================"
+    //             echo " CI/CD Pipeline Starting"
+    //             echo " Build     : #${env.BUILD_NUMBER}"
+    //             echo " Commit    : ${env.GIT_COMMIT?.take(7) ?: 'N/A'}"
+    //             echo " Image Tag : ${IMAGE_TAG}"
+    //             echo "============================================"
+    //             bat 'dir'
+    //         }
+    //     }
 
         // ───────── BUILD ─────────
-        stage('Build') {
+    stages {
+
+        stage('Build Images') {
             steps {
-                echo "Building Docker images..."
+                script {
+                    bat """
+                    docker build -t %BACKEND_IMAGE%:%TAG% backend
+                    docker build -t %FRONTEND_IMAGE%:%TAG% frontend
 
-                bat """
-                docker build ^
-                  -f Dockerfile.frontend ^
-                  -t %FRONTEND_IMAGE%:%IMAGE_TAG% ^
-                  -t %FRONTEND_IMAGE%:latest ^
-                  .
-                """
-
-                bat """
-                docker build ^
-                  -f Dockerfile.backend ^
-                  -t %BACKEND_IMAGE%:%IMAGE_TAG% ^
-                  -t %BACKEND_IMAGE%:latest ^
-                  .
-                """
-
-                echo "Build completed"
+                    docker tag %BACKEND_IMAGE%:%TAG% %BACKEND_IMAGE%:latest
+                    docker tag %FRONTEND_IMAGE%:%TAG% %FRONTEND_IMAGE%:latest
+                    """
+                }
             }
         }
 
         // ───────── PUSH ─────────
-        stage('Push') {
+        stage('Push Images') {
             steps {
-                echo "Logging into Docker Hub..."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    
+                    bat """
+                    docker login -u %USER% -p %PASS%
 
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
+                    docker push %BACKEND_IMAGE%:%TAG%
+                    docker push %FRONTEND_IMAGE%:%TAG%
 
-                    bat '''
-                    echo Logging into Docker Hub...
-                    docker logout
-                    echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
-                    '''
-
-                    echo "Pushing frontend image..."
-                    bat '''
-                    docker push %FRONTEND_IMAGE%:%IMAGE_TAG%
-                    docker push %FRONTEND_IMAGE%:latest
-                    '''
-
-                    echo "Pushing backend image..."
-                    bat '''
-                    docker push %BACKEND_IMAGE%:%IMAGE_TAG%
                     docker push %BACKEND_IMAGE%:latest
-                    '''
-                }
-            }
-            post {
-                always {
-                    bat 'docker logout'
+                    docker push %FRONTEND_IMAGE%:latest
+                    """
                 }
             }
         }
+        
 
         // ───────── DEPLOY ─────────
-        stage('Deploy') {
+stage('Deploy') {
+    steps {
+        bat """
+        docker rm -f backend || exit 0
+        docker rm -f frontend || exit 0
+        docker rm -f nginx || exit 0
+
+        docker-compose down
+        docker pull %BACKEND_IMAGE%:latest
+        docker pull %FRONTEND_IMAGE%:latest
+        docker-compose up -d
+        """
+    }
+}
+
+        stage('Health Check') {
             steps {
-                echo "Deploying using docker-compose..."
-
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-
-                    bat """
-                    cd /d %PROJECT_DIR%
-                    set DOCKER_HUB_USERNAME=%DOCKER_USER%
-                    set IMAGE_TAG=%IMAGE_TAG%
-                    docker compose pull
-                    """
-
-                    bat """
-                    cd /d %PROJECT_DIR%
-                    set DOCKER_HUB_USERNAME=%DOCKER_USER%
-                    set IMAGE_TAG=%IMAGE_TAG%
-                    docker compose up -d --force-recreate
-                    """
+                script {
+                    timeout(time: 2, unit: 'MINUTES') {
+                        bat "curl -f http://localhost/health"
+                    }
                 }
-
-                bat "docker compose -f %PROJECT_DIR%\\docker-compose.yml ps"
-                bat "docker image prune -f"
-
-                echo "Deployment completed"
             }
         }
 
