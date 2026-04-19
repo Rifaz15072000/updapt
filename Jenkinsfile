@@ -27,7 +27,7 @@ pipeline {
 
     environment {
         DOCKER_HUB_USERNAME = 'rifaz15072000'
-        DOCKER_HUB_TOKEN    = credentials('DOCKER_HUB_TOKEN')
+        DOCKER_HUB_TOKEN    = credentials('dockerhub-creds')
 
         FRONTEND_IMAGE = 'rifaz15072000/cicd-frontend'
         BACKEND_IMAGE  = 'rifaz15072000/cicd-backend'
