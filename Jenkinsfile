@@ -27,19 +27,17 @@ pipeline {
         // ───────── BUILD ─────────
     stages {
 
-        stage('Build Images') {
-            steps {
-                script {
-                    bat """
-                    docker build -t %BACKEND_IMAGE%:%TAG% backend
-                    docker build -t %FRONTEND_IMAGE%:%TAG% frontend
+stage('Build Images') {
+    steps {
+        bat """
+        docker build -f Dockerfile.backend -t %BACKEND_IMAGE%:%TAG% .
+        docker build -f Dockerfile.frontend -t %FRONTEND_IMAGE%:%TAG% .
 
-                    docker tag %BACKEND_IMAGE%:%TAG% %BACKEND_IMAGE%:latest
-                    docker tag %FRONTEND_IMAGE%:%TAG% %FRONTEND_IMAGE%:latest
-                    """
-                }
-            }
-        }
+        docker tag %BACKEND_IMAGE%:%TAG% %BACKEND_IMAGE%:latest
+        docker tag %FRONTEND_IMAGE%:%TAG% %FRONTEND_IMAGE%:latest
+        """
+    }
+}
 
         // ───────── PUSH ─────────
         stage('Push Images') {
