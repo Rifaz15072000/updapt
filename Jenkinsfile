@@ -1,6 +1,6 @@
 pipeline {
 
-    agent any
+    agent { label 'windows-agent' }
 
     environment {
         DOCKER_HUB = "rifaz15072000"
