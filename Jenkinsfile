@@ -62,13 +62,17 @@ stage('Build Images') {
 stage('Deploy') {
     steps {
         bat """
+        set DOCKER_HUB_USERNAME=rifaz15072000
+
         docker rm -f backend || exit 0
         docker rm -f frontend || exit 0
         docker rm -f nginx || exit 0
 
         docker-compose down
-        docker pull %BACKEND_IMAGE%:latest
-        docker pull %FRONTEND_IMAGE%:latest
+
+        docker pull %DOCKER_HUB_USERNAME%/cicd-backend:latest
+        docker pull %DOCKER_HUB_USERNAME%/cicd-frontend:latest
+
         docker-compose up -d
         """
     }
